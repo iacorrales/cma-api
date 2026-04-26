@@ -399,19 +399,22 @@ def generate_cma_pdf(property_data, comps, market_data, estimates, cerebras_data
     """
     Generate PDF using cma_pdf_generator.py
     Pass all data as JSON file to the generator
+    PDF generator expects a flat structure, not nested
     """
     logger.info(f"Generating CMA PDF for report {report_id}...")
     
     try:
         # Create temporary JSON file with all data
+        # Flatten property_data to top level for PDF generator
         cma_data = {
-            "property": property_data,
+            **property_data,  # Flatten property fields to top level
             "comps": comps[:6],  # Limit to 6 comps
             "market_data": market_data,
             "estimates": estimates,
             "cerebras_analysis": cerebras_data,
             "report_id": report_id,
-            "generated_date": datetime.now().isoformat()
+            "generated_date": datetime.now().isoformat(),
+            "realtor_name": "Realtor"  # Fallback if not in property_data
         }
         
         # Save to temp file
@@ -597,4 +600,8 @@ def index():
     }), 200
 
 if __name__ == "__main__":
+    # Log startup
+    logger.info("CMA API Server starting...")
+    logger.info(f"RentCast API configured: {RENTCAST_API_KEY[:10]}...")
+    logger.info(f"Cerebras API configured: {CEREBRAS_API_KEY[:10]}...")
     app.run(debug=False, host="0.0.0.0", port=5000)
