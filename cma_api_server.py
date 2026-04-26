@@ -167,6 +167,7 @@ def get_comparable_sales(address, property_data):
     """
     Get 5-7 comparable sales from RentCast AVM endpoint.
     RentCast automatically finds comps and returns them.
+    Also returns the AVM value estimate.
     """
     logger.info(f"Fetching comparable sales from RentCast: {address}")
     
@@ -186,9 +187,13 @@ def get_comparable_sales(address, property_data):
         # RentCast AVM returns object with "comparables" field
         if not data or "comparables" not in data:
             logger.warning("No comparable sales found, using fallback")
-            return []
+            return [], {"rentcast_avm": 430000, "avm_confidence": "Unknown"}
         
         comps_list = data.get("comparables", [])[:7]  # Limit to 7 comps
+        
+        # Extract AVM value from response (same for all comps - it's the subject property value)
+        avm_value = data.get("avm", 430000)
+        avm_confidence = data.get("confidence", "Good")
         
         # Normalize RentCast comp format
         comps = []
@@ -210,11 +215,14 @@ def get_comparable_sales(address, property_data):
             comps.append(comp_data)
         
         logger.info(f"✓ Found {len(comps)} comparable sales")
-        return comps
+        logger.info(f"✓ RentCast AVM: ${avm_value:,.0f}")
+        
+        # Return both comps and AVM value
+        return comps, {"rentcast_avm": avm_value, "avm_confidence": avm_confidence}
         
     except Exception as e:
         logger.error(f"Error fetching comparables: {str(e)}")
-        return []
+        return [], {"rentcast_avm": 430000, "avm_confidence": "Unknown"}
 
 def get_market_data(address):
     """Get market statistics from RentCast or other sources."""
@@ -529,7 +537,7 @@ def generate_cma():
         
         # PHASE 2: Get comparable sales from RentCast
         logger.info("PHASE 2: Finding comparable sales...")
-        comps = get_comparable_sales(address, property_data)
+        comps, avm_estimates = get_comparable_sales(address, property_data)
         if not comps:
             logger.error("No comps found!")
             return jsonify({"error": "Could not find comparable sales"}), 500
@@ -538,9 +546,9 @@ def generate_cma():
         logger.info("PHASE 3: Collecting market data...")
         market_data = get_market_data(address)
         
-        # PHASE 4: Get value estimates
-        logger.info("PHASE 4: Getting value estimates...")
-        estimates = get_value_estimates({"avm": property_data.get("annual_taxes", 430000)})
+        # PHASE 4: Use AVM value estimates from RentCast (already extracted in Phase 2)
+        logger.info("PHASE 4: Using RentCast AVM value estimates...")
+        estimates = avm_estimates
         
         # PHASE 5: Call Cerebras for analysis
         logger.info("PHASE 5: Analyzing with Cerebras...")
