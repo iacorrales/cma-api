@@ -431,12 +431,16 @@ def generate_cma_pdf(data, output_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 cma_pdf_generator.py <json_data>")
+        print("Usage: python3 cma_pdf_generator.py <json_file_path>")
         sys.exit(1)
     
-    data = json.loads(sys.argv[1])
+    # Read JSON data from file (passed as argument)
+    json_file = sys.argv[1]
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+    
     address = data.get('address', 'Property')
     output_file = f"/tmp/{address.replace(' ', '_').replace(',', '')}.pdf"
     
     result = generate_cma_pdf(data, output_file)
-    print(json.dumps({"success": True, "output": result}))
+    print(result)
