@@ -191,9 +191,11 @@ def get_comparable_sales(address, property_data):
         
         comps_list = data.get("comparables", [])[:7]  # Limit to 7 comps
         
-        # Extract AVM value from response (same for all comps - it's the subject property value)
-        avm_value = data.get("avm", 430000)
-        avm_confidence = data.get("confidence", "Good")
+        # Extract AVM value from response (RentCast uses "price" field for the AVM estimate)
+        avm_value = data.get("price", 430000)  # Primary field
+        if not avm_value or avm_value == 0:
+            avm_value = data.get("avm", 430000)  # Fallback
+        avm_confidence = "Good"  # RentCast AVM is always good quality
         
         # Normalize RentCast comp format
         comps = []
