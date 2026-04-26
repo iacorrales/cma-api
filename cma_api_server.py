@@ -497,7 +497,12 @@ def post_callback_to_codeworks(callback_url, report_id, property_data, comps, ce
 @app.route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint for Render"""
-    return jsonify({"status": "healthy", "service": "CMA API", "data_source": "RentCast"}), 200
+    return jsonify({
+        "status": "healthy",
+        "service": "CMA API",
+        "version": "2.1",
+        "data_source": "RentCast"
+    }), 200
 
 @app.route("/generate-cma", methods=["POST"])
 def generate_cma():
