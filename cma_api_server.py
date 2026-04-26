@@ -320,11 +320,10 @@ def generate_pdf(address, realtor_name, property_data, comps, market_data, analy
         temp_data_file = f.name
     
     try:
-        # Call PDF generator
+        # Call PDF generator (use relative path for Render compatibility)
+        generator_path = os.path.join(os.path.dirname(__file__), "cma_pdf_generator.py")
         result = subprocess.run(
-            generator_path = os.path.join(os.path.dirname(__file__), "cma_pdf_generator.py")
-result = subprocess.run(
-    ["python3", generator_path, temp_data_file],
+            ["python3", generator_path, temp_data_file],
             capture_output=True,
             text=True,
             timeout=60
