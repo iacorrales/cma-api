@@ -27,6 +27,9 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Build timestamp to force Render redeploy
+_BUILD_TIME = "2026-04-26T21:45:00Z"
+
 # Configuration
 CEREBRAS_API_KEY = os.getenv("CEREBRAS_API_KEY", "csk-frenn32hd9dyjre968je9tcv3r5x8j4nvetyfy62ec463rnk")
 CEREBRAS_BASE_URL = "https://api.cerebras.ai/v1"
