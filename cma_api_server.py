@@ -88,10 +88,11 @@ def get_property_data(address):
     logger.info(f"Fetching property data from RentCast: {address}")
     
     try:
-        # RentCast /properties endpoint
+        # RentCast /properties endpoint - returns array
         data = rentcast_request("/properties", params={"address": address})
         
-        if not data or "data" not in data:
+        # RentCast returns an array of properties
+        if not data or not isinstance(data, list) or len(data) == 0:
             logger.warning(f"No property data found for {address}, using fallback")
             return {
                 "address": address,
@@ -104,8 +105,32 @@ def get_property_data(address):
                 "condition": "Good"
             }
         
-        # Extract from RentCast response
-        prop = data["data"]
+        # Extract first property from array
+        prop = data[0]
+        
+        # Extract taxes from RentCast format
+        property_taxes = prop.get("propertyTaxes", {})
+        tax_assessments = prop.get("taxAssessments", {})
+        
+        # Get latest year's data
+        latest_tax_year = max(property_taxes.keys()) if property_taxes else None
+        latest_assess_year = max(tax_assessments.keys()) if tax_assessments else None
+        
+        annual_taxes = property_taxes.get(latest_tax_year, {}).get("total", 3800) if latest_tax_year else 3800
+        tax_assessment = tax_assessments.get(latest_assess_year, {}).get("value", 95000) if latest_assess_year else 95000
+        
+        # Extract features
+        features_obj = prop.get("features", {})
+        features_list = []
+        if features_obj and isinstance(features_obj, dict):
+            if features_obj.get("cooling"):
+                features_list.append(f"A/C ({features_obj.get('coolingType', 'Cooling')})")
+            if features_obj.get("garage"):
+                features_list.append(f"Garage ({features_obj.get('garageType', 'Garage')})")
+            if features_obj.get("heating"):
+                features_list.append(f"Heating ({features_obj.get('heatingType', 'Heating')})")
+        if not features_list:
+            features_list = ["Central AC", "Garage"]
         
         property_data = {
             "address": address,
@@ -117,9 +142,9 @@ def get_property_data(address):
             "lot_size": prop.get("lotSize", 0.25),
             "property_type": prop.get("propertyType", "Single Family"),
             "condition": "Good",
-            "features": prop.get("features", ["Central AC", "Garage"]),
-            "annual_taxes": prop.get("taxAssessment", 3800),
-            "tax_assessment": prop.get("taxAssessment", 95000),
+            "features": features_list,
+            "annual_taxes": annual_taxes,
+            "tax_assessment": tax_assessment,
             "latitude": prop.get("latitude"),
             "longitude": prop.get("longitude")
         }
@@ -158,26 +183,29 @@ def get_comparable_sales(address, property_data):
         
         data = rentcast_request("/avm/value", params=params)
         
-        if not data or "comps" not in data:
+        # RentCast AVM returns object with "comparables" field
+        if not data or "comparables" not in data:
             logger.warning("No comparable sales found, using fallback")
             return []
         
-        comps_list = data.get("comps", [])[:7]  # Limit to 7 comps
+        comps_list = data.get("comparables", [])[:7]  # Limit to 7 comps
         
         # Normalize RentCast comp format
         comps = []
         for comp in comps_list:
+            price = comp.get("price", 0) or comp.get("salePrice", 0)
+            sqft = comp.get("squareFootage", 1)
             comp_data = {
-                "address": f"{comp.get('address', 'Unknown')}, {comp.get('city', '')}, {comp.get('state', '')} {comp.get('zipCode', '')}",
-                "sold_date": comp.get("saleDate", datetime.now().strftime("%Y-%m-%d")),
-                "price": comp.get("salePrice", 0),
+                "address": comp.get("formattedAddress", "Unknown"),
+                "sold_date": comp.get("saleDate") or comp.get("listedDate") or datetime.now().strftime("%Y-%m-%d"),
+                "price": price,
                 "beds": comp.get("bedrooms", 3),
                 "baths": comp.get("bathrooms", 2),
-                "sqft": comp.get("squareFootage", 2100),
+                "sqft": sqft,
                 "year_built": comp.get("yearBuilt", 1985),
                 "condition": "Good",
                 "days_on_market": comp.get("daysOnMarket", 25),
-                "price_per_sqft": comp.get("salePrice", 0) / comp.get("squareFootage", 1) if comp.get("squareFootage") else 200
+                "price_per_sqft": price / sqft if sqft > 0 else 200
             }
             comps.append(comp_data)
         
